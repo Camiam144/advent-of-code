@@ -1,5 +1,3 @@
-from itertools import cycle
-
 from utils import get_data, get_script_name
 
 # input_text = """....#.....
@@ -13,6 +11,19 @@ from utils import get_data, get_script_name
 # #.........
 # ......#..."""
 
+# input_text = """...........#.....#......
+# ...................#....
+# ...#.....##.............
+# ......................#.
+# ..................#.....
+# ..#.....................
+# ....................#...
+# ........................
+# .#........^.............
+# ..........#..........#..
+# ..#.....#..........#....
+# ........#.....#..#......"""
+
 
 def main():
     input_text = get_data(get_script_name())
@@ -24,58 +35,95 @@ def main():
     row_guard = idx // len(grid[0])
     col_guard = idx % len(grid[0])
 
-    directions = cycle("urdl")
+    directions = {"u": "r", "r": "d", "d": "l", "l": "u"}
+    moves = {"u": [-1, 0], "r": [0, 1], "d": [1, 0], "l": [0, -1]}
 
-    current_direction = next(directions)
+    current_direction = "u"
 
-    points_visited = set()
     current_row = row_guard
     current_col = col_guard
-    point = (current_row, current_col)
-    points_visited.add(point)
-    guard_path = {}
-    guard_path[point] = [current_direction]
+    points_visited = {}  # Ordered dict for easier debugging
+    # points_visited.add((current_row, current_col))
 
-    while (
-        (current_row + 1 < len(grid))
-        and (current_row >= 0)
-        and (current_col + 1 < len(grid[current_row]))
-        and (current_col >= 0)
-    ):
-        # Check if the step is clear
-        if current_direction == "u":
-            next_row = current_row - 1
-            next_col = current_col
-        elif current_direction == "d":
-            next_row = current_row + 1
-            next_col = current_col
-        elif current_direction == "r":
-            next_row = current_row
-            next_col = current_col + 1
-        elif current_direction == "l":
-            next_row = current_row
-            next_col = current_col - 1
+    while True:
+        dr, dc = moves[current_direction]
+        # print(f"At loc {current_row}, {current_col} pointing {current_direction}")
+
+        next_row = current_row + dr
+        next_col = current_col + dc
+
+        if (
+            next_row >= len(grid)
+            or next_row < 0
+            or next_col >= len(grid[current_row])
+            or next_col < 0
+        ):
+            # Our next step leaves the grid, so we're done
+            points_visited.setdefault((current_row, current_col), []).append(
+                [current_row, current_col]
+            )
+            break
 
         if grid[next_row][next_col] != "#":
             # Step is clear
+            # Can we check for a loop here?
+            points_visited.setdefault((current_row, current_col), []).append(
+                [current_row, current_col]
+            )
             current_row = next_row
             current_col = next_col
-            point = (current_row, current_col)
-            guard_path.setdefault(point, []).append(current_direction)
-            if point not in points_visited:
-                points_visited.add(point)
 
         elif grid[next_row][next_col] == "#":
-            current_direction = next(directions)
+            current_direction = directions[current_direction]
+            # print(f"Next step is blocked, turning {current_direction}")
 
-    pt1 = len(points_visited)
+    pt1 = len(points_visited.keys())
 
     print(f"Part 1: {pt1}")
 
-    # I don't think we can do part 2 unless we've already walked the entire grid
-    # I think we re-walk the path, and at every point, check if placing an object
-    # in front of the guard would cause a loop (entering an existing point moving
-    # in the same direction we were previously moving).
+    # Brute force part 2 along path?
+    pt2 = 0
+    # remove starting point as a valid point
+    points_visited.pop((row_guard, col_guard), None)
+    for block_row, block_col in points_visited:
+        prev_symbol = grid[block_row][block_col]
+        grid[block_row][block_col] = "#"
+
+        current_direction = "u"
+        current_row = row_guard
+        current_col = col_guard
+        visited = set()
+
+        while True:
+            if (current_row, current_col, current_direction) in visited:
+                pt2 += 1
+                break
+
+            dr, dc = moves[current_direction]
+            next_row = current_row + dr
+            next_col = current_col + dc
+
+            if (
+                next_row >= len(grid)
+                or next_row < 0
+                or next_col >= len(grid[current_row])
+                or next_col < 0
+            ):
+                break
+
+            if grid[next_row][next_col] != "#":
+                # Step is clear
+                # Can we check for a loop here?
+                visited.add((current_row, current_col, current_direction))
+                current_row = next_row
+                current_col = next_col
+
+            elif grid[next_row][next_col] == "#":
+                current_direction = directions[current_direction]
+                # print(f"Next step is blocked, turning {current_direction}")
+        grid[block_row][block_col] = prev_symbol
+
+    print(f"Part 2: {pt2}")
 
 
 if __name__ == "__main__":
